@@ -17,9 +17,34 @@ class Lead extends Model
         return $this->belongsTo(User::class, 'assigned_sales');
     }
 
-    public function generateLeadId()
+    /**
+     * Generate a unique lead ID
+     */
+    public static function generateLeadId()
     {
-        $this->lead_id = 'LEAD-' . str_pad($this->id, 6, '0', STR_PAD_LEFT);
+        $lastLead = self::orderBy('id', 'desc')->first();
+        $nextId = $lastLead ? $lastLead->id + 1 : 1;
+        return 'LEAD-' . str_pad($nextId, 6, '0', STR_PAD_LEFT);
+    }
+
+    /**
+     * Generate lead ID and save to model
+     */
+    public function generateAndSaveLeadId()
+    {
+        $this->lead_id = self::generateLeadId();
         $this->save();
+    }
+
+    /**
+     * Boot method to auto-generate lead_id on creation
+     */
+    protected static function booted()
+    {
+        static::creating(function ($lead) {
+            if (empty($lead->lead_id)) {
+                $lead->lead_id = self::generateLeadId();
+            }
+        });
     }
 }

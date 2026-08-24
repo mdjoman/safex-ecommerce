@@ -4,11 +4,11 @@
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
                 <div>
-                    <h3 class="text-xl font-bold">Subscribe to Our Newsletter</h3>
-                    <p class="text-gray-400 text-sm mt-1">Get the latest updates on new products and offers</p>
+                    <h3 class="text-xl font-bold"> {{ setting('subscribe_title', 'SafeX Engineering') }}</h3>
+                    <p class="text-gray-400 text-sm mt-1">{{ setting('subscribe_description', 'Get the latest updates on new products and offers') }}</p>
                 </div>
                 <div>
-                    <form action="{{ route('subscribe') }}" method="POST" class="flex flex-col sm:flex-row gap-2">
+                    <form action="{{ route('subscribe') }}" id="subscribeForm" method="POST" class="flex flex-col sm:flex-row gap-2">
                         @csrf
                         <input type="email" name="email" placeholder="Enter your email" required
                                class="flex-1 px-4 py-2 rounded-lg bg-gray-800 border border-gray-700 text-white placeholder-gray-400 focus:outline-none focus:border-blue-500">
@@ -26,24 +26,25 @@
         <div class="grid grid-cols-1 md:grid-cols-4 gap-8">
             <!-- Company Info -->
             <div>
-                <h3 class="text-lg font-bold mb-4">{{ config('app.name', 'SafeX Engineering') }}</h3>
+                <h3 class="text-lg font-bold mb-4">{{ setting('site_name', 'SafeX Engineering') }}</h3>
                 <p class="text-gray-400 text-sm mb-4">
-                    Leading engineering solutions provider in Bangladesh. Quality products and services since 2020.
-                </p>
+                    {{ setting('footer_description', 'Leading engineering solutions provider in Bangladesh. Quality products and services.') }}
+
+
                 <div class="flex space-x-4">
-                    <a href="{{ setting('facebook_url', '#') }}" class="text-gray-400 hover:text-blue-500 transition">
+                    <a href="{{ setting('facebook_page', '#') }}" class="text-gray-400 hover:text-blue-500 transition">
                         <i class="fab fa-facebook-f text-lg"></i>
                     </a>
-                    <a href="{{ setting('twitter_url', '#') }}" class="text-gray-400 hover:text-blue-400 transition">
+                    <a href="{{ setting('twitter_handle', '#') }}" class="text-gray-400 hover:text-blue-400 transition">
                         <i class="fab fa-twitter text-lg"></i>
                     </a>
-                    <a href="{{ setting('linkedin_url', '#') }}" class="text-gray-400 hover:text-blue-600 transition">
+                    <a href="{{ setting('linkedin_page', '#') }}" class="text-gray-400 hover:text-blue-600 transition">
                         <i class="fab fa-linkedin-in text-lg"></i>
                     </a>
-                    <a href="{{ setting('youtube_url', '#') }}" class="text-gray-400 hover:text-red-600 transition">
+                    <a href="{{ setting('youtube_channel', '#') }}" class="text-gray-400 hover:text-red-600 transition">
                         <i class="fab fa-youtube text-lg"></i>
                     </a>
-                    <a href="{{ setting('instagram_url', '#') }}" class="text-gray-400 hover:text-pink-600 transition">
+                    <a href="{{ setting('instagram_page', '#') }}" class="text-gray-400 hover:text-pink-600 transition">
                         <i class="fab fa-instagram text-lg"></i>
                     </a>
                 </div>
@@ -97,8 +98,72 @@
 
         <!-- Bottom Bar -->
         <div class="border-t border-gray-800 mt-8 pt-6 text-center text-sm text-gray-400">
-            <p>&copy; {{ date('Y') }} {{ config('app.name', 'SafeX Engineering') }}. All rights reserved.</p>
-            <p class="mt-1">Developed with <i class="fas fa-heart text-red-500"></i> by SafeX Team</p>
+            <p>&copy; {{ date('Y') }} {{ setting('site_name', 'SafeX Engineering')}}. All rights reserved.</p>
+            {{-- <p class="mt-1">Developed with <i class="fas fa-heart text-red-500"></i> by SafeX Team</p> --}}
         </div>
     </div>
 </footer>
+@push('scripts')
+<script>
+    document.getElementById('subscribeForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+
+        const form = this;
+        const submitBtn = form.querySelector('button[type="submit"]');
+        const emailInput = form.querySelector('input[name="email"]');
+
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Subscribing...';
+
+        try {
+            const formData = new FormData(form);
+            const response = await fetch(form.action, {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                    'Accept': 'application/json',
+                },
+                body: formData
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                // Show success with custom style
+                Swal.fire({
+                    icon: 'success',
+                    title: '🎉 Subscribed!',
+                    text: data.message,
+                    timer: 3000,
+                    showConfirmButton: false,
+                    background: '#1a1a2e',
+                    color: '#fff',
+                    iconColor: '#10b981'
+                });
+                emailInput.value = '';
+            } else {
+                // Show error with custom style
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Oops...',
+                    text: data.message || 'Something went wrong',
+                    confirmButtonText: 'Try Again',
+                    confirmButtonColor: '#2563eb',
+                    background: '#1a1a2e',
+                    color: '#fff'
+                });
+            }
+        } catch (error) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Connection Error',
+                text: 'Please check your internet connection.',
+                confirmButtonColor: '#2563eb'
+            });
+        } finally {
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Subscribe';
+        }
+    });
+</script>
+@endpush

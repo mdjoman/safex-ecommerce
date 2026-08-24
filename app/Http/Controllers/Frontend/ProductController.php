@@ -9,34 +9,57 @@ use App\Models\SubCategory;
 use App\Models\Lead;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
+use App\Models\Brand;
 
 class ProductController extends Controller
 {
-    public function index(Request $request)
+     public function index(Request $request)
     {
-        $query = Product::where('status', 'active');
+        $query = Product::where('status', 'active')->with(['category', 'subCategory', 'brand']);
 
-        // Filter by category
-        if ($request->has('category')) {
-            $query->where('category_id', $request->category);
+        // ===== FILTER BY MULTIPLE CATEGORIES =====
+        if ($request->has('categories')) {
+            $categoryIds = explode(',', $request->categories);
+            $query->whereIn('category_id', $categoryIds);
         }
 
-        // Filter by subcategory
-        if ($request->has('subcategory')) {
-            $query->where('sub_category_id', $request->subcategory);
+        // ===== FILTER BY MULTIPLE SUBCATEGORIES =====
+        if ($request->has('subcategories')) {
+            $subCategoryIds = explode(',', $request->subcategories);
+            $query->whereIn('sub_category_id', $subCategoryIds);
         }
 
-        // Search
-        if ($request->has('search')) {
+        // ===== FILTER BY MULTIPLE BRANDS =====
+        if ($request->has('brands')) {
+            $brandIds = explode(',', $request->brands);
+            $query->whereIn('brand_id', $brandIds);
+        }
+
+        // ===== FILTER BY PRICE RANGE =====
+        if ($request->has('price_min')) {
+            $query->where('selling_price', '>=', $request->price_min);
+        }
+        if ($request->has('price_max')) {
+            $query->where('selling_price', '<=', $request->price_max);
+        }
+
+        // ===== SEARCH =====
+        if ($request->has('search') && !empty($request->search)) {
             $search = $request->search;
             $query->where(function($q) use ($search) {
                 $q->where('name', 'LIKE', "%{$search}%")
                   ->orWhere('sku', 'LIKE', "%{$search}%")
-                  ->orWhere('brand', 'LIKE', "%{$search}%");
+                  ->orWhere('short_description', 'LIKE', "%{$search}%")
+                  ->orWhereHas('brand', function ($brandQuery) use ($search) {
+                        $brandQuery->where('name', 'LIKE', "%{$search}%");
+                    })
+                  ->orWhereHas('category', function ($categoryQuery) use ($search) {
+                        $categoryQuery->where('name', 'LIKE', "%{$search}%");
+                    });
             });
         }
 
-        // Sort
+        // ===== SORTING =====
         switch ($request->sort) {
             case 'price_low':
                 $query->orderBy('selling_price', 'asc');
@@ -44,30 +67,76 @@ class ProductController extends Controller
             case 'price_high':
                 $query->orderBy('selling_price', 'desc');
                 break;
-            case 'newest':
-                $query->orderBy('created_at', 'desc');
+            case 'popular':
+                $query->orderBy('views', 'desc');
                 break;
+            case 'newest':
             default:
-                $query->orderBy('name');
+                $query->orderBy('created_at', 'desc');
         }
 
+        // ===== PAGINATE =====
         $products = $query->paginate(12);
-        $categories = Category::where('status', 'active')->get();
-        $subCategories = SubCategory::where('status', 'active')->get();
 
-        return view('frontend.products.index', compact('products', 'categories', 'subCategories'));
+        // ===== GET ALL DATA FOR FILTERS =====
+        $categories = Category::where('status', 'active')
+            ->withCount(['products' => function($q) {
+                $q->where('status', 'active');
+            }])
+            ->orderBy('name')
+            ->get();
+
+        $subCategories = SubCategory::where('status', 'active')
+            ->withCount(['products' => function($q) {
+                $q->where('status', 'active');
+            }])
+            ->orderBy('name')
+            ->get();
+
+        $brands = Brand::where('status', 'active')
+            ->withCount(['products' => function($q) {
+                $q->where('status', 'active');
+            }])
+            ->orderBy('name')
+            ->get();
+
+        // ===== GET PRICE RANGE FOR SLIDER =====
+        $minPrice = Product::where('status', 'active')->min('selling_price') ?? 0;
+        $maxPrice = Product::where('status', 'active')->max('selling_price') ?? 1000;
+
+        // ===== GET SELECTED FILTERS =====
+        $selectedCategories = $request->has('categories') ? explode(',', $request->categories) : [];
+        $selectedSubCategories = $request->has('subcategories') ? explode(',', $request->subcategories) : [];
+        $selectedBrands = $request->has('brands') ? explode(',', $request->brands) : [];
+
+        return view('frontend.products.index', compact(
+            'products',
+            'categories',
+            'subCategories',
+            'brands',
+            'minPrice',
+            'maxPrice',
+            'selectedCategories',
+            'selectedSubCategories',
+            'selectedBrands'
+        ));
     }
 
     public function show($slug)
     {
         $product = Product::where('slug', $slug)
                          ->where('status', 'active')
+                         ->with(['category', 'subCategory', 'brand'])
                          ->firstOrFail();
+
+        // Increment view count
+        $product->increment('views');
 
         // Get related products
         $relatedProducts = Product::where('category_id', $product->category_id)
                                  ->where('id', '!=', $product->id)
                                  ->where('status', 'active')
+                                 ->with(['category', 'brand'])
                                  ->take(4)
                                  ->get();
 
@@ -79,32 +148,29 @@ class ProductController extends Controller
 
     private function createLead($product)
     {
-        $leadId = Lead::generateLeadId();
-
-        $leadData = [
-            'lead_id' => $leadId,
-            'interested_product' => $product->name,
-            'source' => 'Product View',
-            'status' => 'new'
-        ];
-
-        // If user is authenticated
+        // Check if user is logged in
         if (auth()->check()) {
-            $leadData['customer_name'] = auth()->user()->name;
-            $leadData['email'] = auth()->user()->email;
+            $lead = Lead::updateOrCreate(
+                ['user_id' => auth()->id()],
+                [
+                    'interested_product' => $product->name,
+                    'source' => 'Product View',
+                    'product_id' => $product->id
+                ]
+            );
+        } else {
+            // For guest users, use session
+            $sessionId = session()->getId();
+            $lead = Lead::updateOrCreate(
+                ['session_id' => $sessionId],
+                [
+                    'interested_product' => $product->name,
+                    'source' => 'Product View',
+                    'product_id' => $product->id
+                ]
+            );
+            session(['lead_id' => $lead->id]);
         }
-
-        // Check if session has lead
-        if (session()->has('lead_id')) {
-            $lead = Lead::where('lead_id', session('lead_id'))->first();
-            if ($lead) {
-                $lead->update(['interested_product' => $product->name]);
-                return;
-            }
-        }
-
-        // Store lead data in session for later update
-        $lead = Lead::create($leadData);
-        session(['lead_id' => $lead->lead_id]);
     }
+
 }

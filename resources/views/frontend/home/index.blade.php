@@ -3,377 +3,7 @@
 @section('title', setting('site_name', 'SafeX Engineering') . ' - Home')
 
 @push('styles')
-<style>
-    /* ============================================
-       HERO SLIDER STYLES
-       ============================================ */
-    .hero-slider-section {
-        position: relative;
-        overflow: hidden;
-    }
-
-    .hero-slider-section::before {
-        content: '';
-        position: absolute;
-        top: -50%;
-        right: -10%;
-        width: 500px;
-        height: 500px;
-        background: radial-gradient(circle, rgba(6, 88, 220, 0.08) 0%, transparent 70%);
-        border-radius: 50%;
-        pointer-events: none;
-        z-index: 0;
-    }
-
-    .hero-slider-section::after {
-        content: '';
-        position: absolute;
-        bottom: -30%;
-        left: -10%;
-        width: 400px;
-        height: 400px;
-        background: radial-gradient(circle, rgba(6, 55, 161, 0.05) 0%, transparent 70%);
-        border-radius: 50%;
-        pointer-events: none;
-        z-index: 0;
-    }
-
-    .hero-slider {
-        height: 100%;
-        position: relative;
-        z-index: 1;
-    }
-
-    .hero-slider .swiper-slide {
-        height: 100%;
-        min-height: 480px;
-    }
-
-    /* Animations */
-    .hero-slider .swiper-slide-active .text-content {
-        animation: fadeInUp 0.8s ease forwards;
-    }
-
-    .hero-slider .swiper-slide-active .image-content {
-        animation: fadeInRight 0.8s ease forwards;
-    }
-
-    @keyframes fadeInUp {
-        from {
-            opacity: 0;
-            transform: translateY(30px);
-        }
-        to {
-            opacity: 1;
-            transform: translateY(0);
-        }
-    }
-
-    @keyframes fadeInRight {
-        from {
-            opacity: 0;
-            transform: translateX(30px);
-        }
-        to {
-            opacity: 1;
-            transform: translateX(0);
-        }
-    }
-
-    /* ============================================
-       BUTTON STYLES
-       ============================================ */
-    .btn-primary {
-        background: #0637A1;
-        color: white;
-        transition: all 0.3s ease;
-    }
-    .btn-primary:hover {
-        background: #03246E;
-        transform: translateY(-3px) scale(1.05);
-        box-shadow: 0 10px 30px rgba(6, 55, 161, 0.3);
-    }
-
-    .btn-outline-light {
-        border: 2px solid rgba(255, 255, 255, 0.6);
-        color: white;
-        background: transparent;
-        transition: all 0.3s ease;
-    }
-    .btn-outline-light:hover {
-        background: white !important;
-        color: #021447 !important;
-        transform: translateY(-3px);
-        border-color: white;
-    }
-
-    /* ============================================
-       PRODUCT CARD
-       ============================================ */
-    .product-card {
-        background: white;
-        border-radius: 16px;
-        overflow: hidden;
-        transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-        border: 1px solid #E5E6E9;
-        box-shadow: 0 2px 10px rgba(2, 20, 71, 0.04);
-    }
-    .product-card:hover {
-        transform: translateY(-10px);
-        border-color: #0637A1;
-        box-shadow: 0 20px 50px rgba(2, 20, 71, 0.12);
-    }
-    .product-card .product-image {
-        overflow: hidden;
-        position: relative;
-        background: #f8f9fa;
-    }
-    .product-card .product-image img {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-        transition: transform 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-    }
-    .product-card:hover .product-image img {
-        transform: scale(1.08);
-    }
-    .product-card .discount-badge {
-        position: absolute;
-        top: 12px;
-        right: 12px;
-        background: #CC2717;
-        color: white;
-        font-size: 10px;
-        font-weight: 700;
-        padding: 4px 12px;
-        border-radius: 20px;
-        z-index: 2;
-        box-shadow: 0 4px 10px rgba(204, 39, 23, 0.3);
-    }
-    .product-card .wishlist-btn {
-        position: absolute;
-        top: 12px;
-        left: 12px;
-        background: white;
-        color: #C2C6D0;
-        width: 32px;
-        height: 32px;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        border: none;
-        cursor: pointer;
-        transition: all 0.3s ease;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.08);
-        z-index: 2;
-    }
-    .product-card .wishlist-btn:hover {
-        color: #CC2717;
-        transform: scale(1.1);
-    }
-    .product-card .product-rating {
-        color: #f59e0b;
-        font-size: 11px;
-        letter-spacing: 1px;
-    }
-    .product-card .add-cart-btn {
-        background: #0637A1;
-        color: white;
-        padding: 6px 14px;
-        border-radius: 8px;
-        font-size: 11px;
-        font-weight: 600;
-        border: none;
-        cursor: pointer;
-        transition: all 0.3s ease;
-    }
-    .product-card .add-cart-btn:hover {
-        background: #03246E;
-        transform: scale(1.05);
-        box-shadow: 0 4px 15px rgba(6, 55, 161, 0.3);
-    }
-
-    /* ============================================
-       CATEGORY CARD
-       ============================================ */
-    .category-card {
-        background: white;
-        border-radius: 16px;
-        overflow: hidden;
-        transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-        border: 1px solid #E5E6E9;
-        text-decoration: none;
-        display: block;
-        box-shadow: 0 2px 10px rgba(2, 20, 71, 0.04);
-    }
-    .category-card:hover {
-        transform: translateY(-8px);
-        border-color: #0637A1;
-        box-shadow: 0 20px 50px rgba(2, 20, 71, 0.12);
-        text-decoration: none;
-    }
-    .category-card .category-image {
-        overflow: hidden;
-        position: relative;
-        background: #f8f9fa;
-    }
-    .category-card .category-image img {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-        transition: transform 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-    }
-    .category-card:hover .category-image img {
-        transform: scale(1.08);
-    }
-    .category-card .category-overlay {
-        position: absolute;
-        inset: 0;
-        background: linear-gradient(to top, rgba(2, 20, 71, 0.7), transparent 60%);
-        opacity: 0;
-        transition: opacity 0.4s ease;
-    }
-    .category-card:hover .category-overlay {
-        opacity: 1;
-    }
-    .category-card .category-count {
-        position: absolute;
-        bottom: 12px;
-        right: 12px;
-        background: rgba(255,255,255,0.92);
-        backdrop-filter: blur(8px);
-        color: #021447;
-        font-size: 10px;
-        font-weight: 700;
-        padding: 4px 12px;
-        border-radius: 20px;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.08);
-        z-index: 2;
-    }
-
-    /* ============================================
-       ABOUT SECTION
-       ============================================ */
-    .about-section {
-        position: relative;
-        overflow: hidden;
-    }
-    .about-section::before {
-        content: '';
-        position: absolute;
-        top: -50%;
-        right: -20%;
-        width: 500px;
-        height: 500px;
-        background: radial-gradient(circle, rgba(6, 88, 220, 0.08) 0%, transparent 70%);
-        border-radius: 50%;
-        pointer-events: none;
-    }
-    .about-section .stat-item {
-        position: relative;
-    }
-    .about-section .stat-item:not(:last-child)::after {
-        content: '';
-        position: absolute;
-        right: -12px;
-        top: 50%;
-        transform: translateY(-50%);
-        width: 2px;
-        height: 30px;
-        background: rgba(255, 255, 255, 0.1);
-    }
-
-    /* ============================================
-       SECTION TITLES
-       ============================================ */
-    .section-title {
-        position: relative;
-        display: inline-block;
-    }
-    .section-title::after {
-        content: '';
-        position: absolute;
-        bottom: -8px;
-        left: 50%;
-        transform: translateX(-50%);
-        width: 60px;
-        height: 3px;
-        background: #0637A1;
-        border-radius: 2px;
-    }
-    .section-title.text-left::after {
-        left: 0;
-        transform: none;
-    }
-
-    /* ============================================
-       RESPONSIVE
-       ============================================ */
-    @media (max-width: 640px) {
-        .hero-slider .swiper-slide {
-            min-height: 480px;
-        }
-        .hero-slider .swiper-slide .image-content img {
-            height: 180px !important;
-            object-fit: cover !important;
-        }
-        .about-section .stat-item:not(:last-child)::after {
-            display: none;
-        }
-        .product-card .product-image img {
-            height: 180px !important;
-        }
-        .category-card .category-image {
-            aspect-ratio: 1/1;
-        }
-        .category-card .category-image img {
-            height: 150px !important;
-        }
-        .section-title::after {
-            width: 40px;
-        }
-    }
-
-    @media (min-width: 641px) and (max-width: 768px) {
-        .hero-slider .swiper-slide {
-            min-height: 520px;
-        }
-        .hero-slider .swiper-slide .image-content img {
-            height: 250px !important;
-            object-fit: cover !important;
-        }
-        .product-card .product-image img {
-            height: 200px !important;
-        }
-    }
-
-    @media (min-width: 769px) and (max-width: 1024px) {
-        .hero-slider .swiper-slide {
-            min-height: 600px;
-        }
-        .hero-slider .swiper-slide .image-content img {
-            height: 320px !important;
-            object-fit: cover !important;
-        }
-    }
-
-    @media (min-width: 1025px) {
-        .hero-slider .swiper-slide {
-            min-height: 650px;
-        }
-        .hero-slider .swiper-slide .image-content img {
-            height: 400px !important;
-            object-fit: cover !important;
-        }
-        .product-card .product-image img {
-            height: 240px !important;
-        }
-        .category-card .category-image img {
-            height: 200px !important;
-        }
-    }
-</style>
+    <link rel="stylesheet" href="{{asset('/frontend/home.css')}}">
 @endpush
 
 @section('content')
@@ -476,14 +106,14 @@
 <!-- ============================================
      ABOUT SECTION
      ============================================ -->
-<section class="about-section py-12 md:py-16 bg-gradient-to-r from-[#021447] to-[#03246E] text-white">
+<section class="about-section py-12 md:py-16 bg-gradient-to-r from-[#021447] to-[#111827] text-white">
     <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10">
         <div class="w-16 h-16 sm:w-20 sm:h-20 mx-auto bg-[#0658DC]/20 rounded-full flex items-center justify-center mb-4 sm:mb-6">
             <i class="fas fa-shield-alt text-2xl sm:text-3xl text-[#0658DC]"></i>
         </div>
 
         <h2 class="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold mb-3 sm:mb-4">
-            {{ setting('site_name', 'SafeX Engineering') }}
+            {{ setting('about_title', 'SafeX Engineering') }}
         </h2>
 
         <p class="text-sm sm:text-base md:text-lg lg:text-xl text-white/80 max-w-3xl mx-auto leading-relaxed mb-6 sm:mb-8 px-2">
@@ -492,20 +122,20 @@
 
         <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-6 max-w-3xl mx-auto mb-6 sm:mb-8">
             <div class="stat-item text-center">
-                <span class="block text-2xl sm:text-3xl md:text-4xl font-bold text-[#0658DC]">2</span>
-                <span class="text-[10px] sm:text-xs text-white/60">Year Warranty</span>
+                <span class="block text-2xl sm:text-3xl md:text-4xl font-bold text-[#0658DC]">{{ setting('about_sub_data_1', '2') }}</span>
+                <span class="text-[10px] sm:text-xs text-white/60">{{ setting('about_sub_title_1', 'Service years') }}</span>
             </div>
             <div class="stat-item text-center">
-                <span class="block text-2xl sm:text-3xl md:text-4xl font-bold text-[#0658DC]">4</span>
-                <span class="text-[10px] sm:text-xs text-white/60">Free Service</span>
+                <span class="block text-2xl sm:text-3xl md:text-4xl font-bold text-[#0658DC]">{{ setting('about_sub_data_2', '4') }}</span>
+                <span class="text-[10px] sm:text-xs text-white/60">{{ setting('about_sub_title_2', 'Free Service') }}</span>
             </div>
             <div class="stat-item text-center">
-                <span class="block text-2xl sm:text-3xl md:text-4xl font-bold text-[#0658DC]">24/7</span>
-                <span class="text-[10px] sm:text-xs text-white/60">Support</span>
+                <span class="block text-2xl sm:text-3xl md:text-4xl font-bold text-[#0658DC]">{{ setting('about_sub_data_3', '24/7') }}</span>
+                <span class="text-[10px] sm:text-xs text-white/60">{{ setting('about_sub_title_3', 'Support') }}</span>
             </div>
             <div class="stat-item text-center">
-                <span class="block text-2xl sm:text-3xl md:text-4xl font-bold text-[#0658DC]">1000+</span>
-                <span class="text-[10px] sm:text-xs text-white/60">Happy Clients</span>
+                <span class="block text-2xl sm:text-3xl md:text-4xl font-bold text-[#0658DC]">{{ setting('about_sub_data_4', '2') }}</span>
+                <span class="text-[10px] sm:text-xs text-white/60">{{ setting('about_sub_title_4', 'Happy Clients') }}</span>
             </div>
         </div>
 
@@ -531,7 +161,7 @@
             <h2 class="section-title text-2xl sm:text-3xl md:text-4xl font-bold text-[#021447]">
                 Shop by <span class="text-[#0637A1]">Category</span>
             </h2>
-            <p class="text-[#363C54] text-sm md:text-base mt-4">Browse our wide range of engineering products by category</p>
+            <p class="text-[#363C54] text-sm md:text-base mt-4">{{ setting('category_section_description', 'Browse our wide range of engineering products by category') }}</p>
         </div>
 
         <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
@@ -585,7 +215,7 @@
             <h2 class="section-title text-2xl sm:text-3xl md:text-4xl font-bold text-[#021447]">
                 <span class="text-[#0637A1]">Featured</span> Products
             </h2>
-            <p class="text-[#363C54] text-sm md:text-base mt-4">Discover our handpicked selection of premium engineering products</p>
+            <p class="text-[#363C54] text-sm md:text-base mt-4">{{ setting('product_section_description', 'Discover our handpicked selection of premium engineering products') }}</p>
         </div>
 
         <div class="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
@@ -604,14 +234,14 @@
                         @endphp
                         @if($isUrl)
                             <img src="{{ $imagePath }}"
-                                 alt="{{ $product->name }}"
-                                 class="w-full h-full object-cover"
-                                 loading="lazy">
+                                alt="{{ $product->name }}"
+                                class="w-full h-full object-cover"
+                                loading="lazy">
                         @else
                             <img src="{{ asset('storage/' . $imagePath) }}"
-                                 alt="{{ $product->name }}"
-                                 class="w-full h-full object-cover"
-                                 loading="lazy">
+                                alt="{{ $product->name }}"
+                                class="w-full h-full object-cover"
+                                loading="lazy">
                         @endif
                     </a>
                     <button class="wishlist-btn" onclick="event.preventDefault();">
@@ -619,33 +249,61 @@
                     </button>
                 </div>
                 <div class="p-3 sm:p-4">
-                    <span class="text-[10px] sm:text-xs font-medium text-[#0637A1] bg-[#0637A1]/10 px-2 py-0.5 rounded-full">
-                        {{ $product->category->name ?? 'Uncategorized' }}
-                    </span>
+                    <!-- Category and Stock Status -->
+                    <div class="flex items-center justify-between">
+                        <span class="text-[10px] sm:text-xs font-medium text-[#0637A1] bg-[#0637A1]/10 px-2 py-0.5 rounded-full">
+                            {{ $product->category->name ?? 'Uncategorized' }}
+                        </span>
+                        <!-- Stock Status -->
+                        @php
+                            $availableStock = $product->getAvailableStock();
+                        @endphp
+                        @if($availableStock > 0)
+                            <span class="text-[10px] sm:text-xs font-medium text-green-600 bg-green-100 px-2 py-0.5 rounded-full">
+                                <i class="fas fa-circle text-[6px] text-green-600 mr-1"></i>
+                                In Stock
+                            </span>
+                        @else
+                            <span class="text-[10px] sm:text-xs font-medium text-red-600 bg-red-100 px-2 py-0.5 rounded-full">
+                                <i class="fas fa-circle text-[6px] text-red-600 mr-1"></i>
+                                Sold Out
+                            </span>
+                        @endif
+                    </div>
+
                     <h3 class="text-xs sm:text-sm md:text-base font-semibold text-[#021447] mt-1.5 mb-0.5 line-clamp-1">
                         <a href="{{ route('product.show', $product->slug) }}" class="hover:text-[#0637A1] transition-colors">
                             {{ $product->name }}
                         </a>
                     </h3>
+
                     <div class="product-rating mt-1">
                         <i class="fas fa-star"></i>
                         <i class="fas fa-star"></i>
                         <i class="fas fa-star"></i>
                         <i class="fas fa-star"></i>
                         <i class="fas fa-star-half-alt"></i>
-                        <span class="text-[10px] text-[#C2C6D0] ml-1">(24)</span>
+                        <span class="text-[10px] text-[#C2C6D0] ml-1">({{ $product->views }})</span>
                     </div>
+
                     <div class="flex justify-between items-center mt-2 pt-2 border-t border-[#E5E6E9]">
                         <div>
-                            <span class="text-sm sm:text-base md:text-lg font-bold text-[#0637A1]">৳ {{ number_format($product->price, 2) }}</span>
+                            <span class="text-sm sm:text-base md:text-lg font-bold text-[#0637A1]">{{setting('currency_symbol', '৳')}} {{ number_format($product->price, 2) }}</span>
                             @if($product->discount_price)
-                                <span class="text-[10px] sm:text-xs text-[#C2C6D0] line-through ml-1">৳ {{ number_format($product->selling_price, 2) }}</span>
+                                <span class="text-[10px] sm:text-xs text-[#C2C6D0] line-through ml-1">{{setting('currency_symbol', '৳')}} {{ number_format($product->selling_price, 2) }}</span>
                             @endif
                         </div>
-                        <button onclick="addToCart({{ $product->id }})" class="add-cart-btn">
-                            <i class="fas fa-cart-plus sm:mr-1"></i>
-                            <span class="hidden sm:inline">Add</span>
-                        </button>
+                        @if($product->getAvailableStock() > 0)
+                            <button onclick="addToCart({{ $product->id }})" class="add-cart-btn">
+                                <i class="fas fa-cart-plus sm:mr-1"></i>
+                                <span class="hidden sm:inline">Add</span>
+                            </button>
+                        @else
+                            <button class="add-cart-btn bg-gray-300 hover:bg-gray-300 cursor-not-allowed opacity-60" disabled>
+                                <i class="fas fa-times-circle sm:mr-1"></i>
+                                <span class="hidden sm:inline">Out of Stock</span>
+                            </button>
+                        @endif
                     </div>
                 </div>
             </div>
@@ -661,8 +319,6 @@
     </div>
 </section>
 @endif
-
-
 @endif
 
 @endsection
@@ -705,43 +361,5 @@
             });
         });
     });
-
-    // Add to Cart Function
-    function addToCart(productId) {
-        fetch('{{ route("cart.add") }}', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': '{{ csrf_token() }}'
-            },
-            body: JSON.stringify({
-                product_id: productId,
-                quantity: 1
-            })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                document.querySelector('.cart-count').textContent = data.cart_count;
-                if (typeof toastr !== 'undefined') {
-                    toastr.success(data.message);
-                } else {
-                    alert(data.message);
-                }
-            } else {
-                if (typeof toastr !== 'undefined') {
-                    toastr.error(data.message);
-                } else {
-                    alert(data.message);
-                }
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            if (typeof toastr !== 'undefined') {
-                toastr.error('Something went wrong. Please try again.');
-            }
-        });
-    }
 </script>
 @endpush

@@ -52,4 +52,10 @@ class Product extends Model
     {
         return $this->discount_price ?? $this->selling_price;
     }
+
+    public function getAvailableStock()
+    {
+        // Return actual stock quantity from database
+        return $this->stock_qty ?? 0;
+    }
 }
