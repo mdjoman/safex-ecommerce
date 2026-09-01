@@ -210,6 +210,7 @@
                 },
                 success: function(response) {
                     if (response.success) {
+                        console.log(response.cart_count)
                         document.querySelector('.cart-count').textContent = response.cart_count;
                         toastr.success(response.message);
                     } else {

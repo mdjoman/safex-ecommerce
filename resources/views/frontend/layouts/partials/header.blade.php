@@ -125,7 +125,7 @@
 
 <!-- Top Bar -->
 <div class="bg-safex-primary-navy text-white text-sm py-1.5 border-b border-safex-dark-blue">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="max-w-7xl mx-auto  sm:px-6 ">
         <div class="flex justify-between items-center">
             <div class="flex items-center space-x-4">
                 <span class="top-bar-link"><i class="fas fa-phone mr-1"></i> {{ $phone }}</span>
@@ -203,7 +203,7 @@
 
 <!-- Main Navigation -->
 <nav class="bg-safex-white shadow-lg sticky top-0 z-40 border-b border-safex-dark-blue">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="max-w-7xl mx-auto  sm:px-6 ">
         <div class="flex justify-between items-center h-16">
             <!-- Logo -->
             <div class="flex-shrink-0 flex items-center">

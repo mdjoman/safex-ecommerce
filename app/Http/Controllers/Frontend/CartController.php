@@ -19,108 +19,133 @@ use App\Mail\AdminOrderNotificationMail;
 
 class CartController extends Controller
 {
-    public function index()
+    /**
+     * Common function to get cart with items
+     */
+    private function getCart()
     {
-        $cart = $this->getCart();
+        if (auth()->check()) {
+            $cart = Cart::firstOrCreate(['user_id' => auth()->id()]);
+        } else {
+            $sessionId = Session::getId();
+            $cart = Cart::firstOrCreate(['session_id' => $sessionId]);
+        }
+        return $cart->load('items.product');
+    }
 
-        // Get settings from database
+    /**
+     * Common function to calculate cart summary
+     */
+    private function calculateCartSummary($cart)
+    {
         $settings = Setting::pluck('value', 'key')->toArray();
-
         $vatRate = $settings['vat_rate'] ?? 0;
-        $deliveryChargeInside = $settings['delivery_charge_inside_city'] ?? 0;
-        $deliveryChargeOutside = $settings['delivery_charge_outside_city'] ?? 0;
+        $deliveryCharge = session('delivery_charge')
+            ?? ($settings['delivery_charge_inside_city'] ?? 0);
+        $delivery_type = session('delivery_type')
+            ?? 'inside';
 
-        // Initialize calculation variables
+        $appliedCoupon = session('applied_coupon', null);
+
         $subtotal = 0;
-        $totalDiscount = 0;
+        $totalProductDiscount = 0;
         $totalCouponDiscount = 0;
-        $appliedCoupons = [];
-        $cartItems = [];
+        $items = [];
 
         if ($cart && $cart->items) {
             foreach ($cart->items as $item) {
                 $product = $item->product;
                 $quantity = $item->quantity;
 
-                // Get price (use discount price if available)
                 $unitPrice = $product->discount_price ?? $product->selling_price;
                 $originalPrice = $product->selling_price;
 
-                // Calculate row totals
                 $rowSubtotal = $unitPrice * $quantity;
-                $rowDiscount = 0;
-                $rowCouponDiscount = 0;
 
-                // Calculate product discount per row
+                $rowProductDiscount = 0;
                 if ($product->discount_price && $product->discount_price < $product->selling_price) {
-                    $rowDiscount = ($product->selling_price - $product->discount_price) * $quantity;
-                    $totalDiscount += $rowDiscount;
+                    $rowProductDiscount = ($product->selling_price - $product->discount_price) * $quantity;
+                    $totalProductDiscount += $rowProductDiscount;
                 }
 
-                // Calculate coupon discount per row
-                if ($product->coupon_code && $product->coupon_less_amount > 0) {
-                    $rowCouponDiscount = $product->coupon_less_amount * $quantity;
+                $rowCouponDiscount = 0;
+                $hasCoupon = false;
+                if ($appliedCoupon && isset($appliedCoupon['products'][$item->product_id])) {
+                    $rowCouponDiscount = $appliedCoupon['products'][$item->product_id]['discount'];
+                    $hasCoupon = true;
                     $totalCouponDiscount += $rowCouponDiscount;
-                    $appliedCoupons[] = [
-                        'code' => $product->coupon_code,
-                        'amount' => $rowCouponDiscount,
-                        'product_name' => $product->name
-                    ];
                 }
+                $rowTotal = $rowSubtotal  - $rowCouponDiscount;
+                $subtotal += $rowSubtotal + $rowProductDiscount;
 
-                // Row total after all discounts
-                $rowTotal = $rowSubtotal - $rowDiscount - $rowCouponDiscount;
-
-                // Add to subtotal
-                $subtotal += $rowSubtotal;
-
-                // Store item data for view
-                $cartItems[] = (object) [
+                $items[] = (object) [
                     'id' => $item->id,
                     'product' => $product,
                     'quantity' => $quantity,
                     'unit_price' => $unitPrice,
-                    'original_price' => $originalPrice,
-                    'row_subtotal' => $rowSubtotal,
-                    'row_discount' => $rowDiscount,
+                    'row_subtotal' => $rowTotal,
+                    'row_discount' => $rowProductDiscount,
                     'row_coupon_discount' => $rowCouponDiscount,
-                    'row_total' => $rowTotal,
-                    'has_discount' => $product->discount_price,
-                    'has_coupon' => $product->coupon_code && $product->coupon_less_amount > 0,
-                    'coupon_code' => $product->coupon_code,
-                    'coupon_less_amount' => $product->coupon_less_amount ?? 0,
+                    'has_discount' => $rowProductDiscount > 0,
+                    'has_coupon' => $hasCoupon,
+                    'coupon_code' => $hasCoupon ? $appliedCoupon['code'] : null,
                 ];
             }
         }
 
-        // Calculate totals
-        $totalAfterDiscount = $subtotal - $totalDiscount - $totalCouponDiscount;
+        $totalAfterDiscount = $subtotal - $totalProductDiscount - $totalCouponDiscount;
         $vatAmount = $totalAfterDiscount * ($vatRate / 100);
-        $grandTotal = $totalAfterDiscount + $vatAmount + $deliveryChargeInside;
+        $grandTotal = $totalAfterDiscount + $vatAmount + $deliveryCharge;
 
-        // Get featured products for empty cart
+        return [
+            'items' => $items,
+            'subtotal' => $subtotal,
+            'total_product_discount' => $totalProductDiscount,
+            'total_coupon_discount' => $totalCouponDiscount,
+            'total_after_discount' => $totalAfterDiscount,
+            'vat_rate' => $vatRate,
+            'vat_amount' => $vatAmount,
+            'delivery_charge' => $deliveryCharge,
+            'grand_total' => $grandTotal,
+            'items_count' => $cart->items->count() ?? 0,
+            'applied_coupon' => $appliedCoupon,
+            'delivery_type'  => $delivery_type,
+        ];
+    }
+
+    /**
+     * Display cart page
+     */
+    public function index()
+    {
+        $cart = $this->getCart();
+        $summary = $this->calculateCartSummary($cart);
+
         $featuredProducts = Product::where('status', 'active')
             ->orderBy('created_at', 'desc')
             ->limit(4)
             ->get();
 
-        return view('frontend.cart.index', compact(
-            'cart',
-            'vatRate',
-            'deliveryChargeInside',
-            'deliveryChargeOutside',
-            'totalDiscount',
-            'totalCouponDiscount',
-            'appliedCoupons',
-            'subtotal',
-            'totalAfterDiscount',
-            'vatAmount',
-            'grandTotal',
-            'featuredProducts',
-            'cartItems'
-        ));
+        return view('frontend.cart.index', [
+            'cart' => $cart,
+            'cartItems' => $summary['items'],
+            'subtotal' => $summary['subtotal'],
+            'totalDiscount' => $summary['total_product_discount'],
+            'totalCouponDiscount' => $summary['total_coupon_discount'],
+            'totalAfterDiscount' => $summary['total_after_discount'],
+            'vatRate' =>  $summary['vat_rate'],
+            'vatAmount' => $summary['vat_amount'],
+            'delivery_charge' =>  $summary['delivery_charge'],
+            'grandTotal' => $summary['grand_total'],
+            'appliedCoupon' => $summary['applied_coupon'],
+            'delivery_type' => $summary['delivery_type'],
+            'featuredProducts' => $featuredProducts,
+        ]);
     }
 
+    /**
+     * Add item to cart
+     */
     public function add(Request $request)
     {
         $request->validate([
@@ -131,7 +156,6 @@ class CartController extends Controller
         $cart = $this->getCart();
         $product = Product::find($request->product_id);
 
-        // Check stock
         if ($product->stock_qty < $request->quantity) {
             return response()->json([
                 'success' => false,
@@ -139,7 +163,6 @@ class CartController extends Controller
             ]);
         }
 
-        // Add or update cart item
         $cartItem = CartItem::where('cart_id', $cart->id)
                            ->where('product_id', $request->product_id)
                            ->first();
@@ -162,19 +185,22 @@ class CartController extends Controller
             ]);
         }
 
-        // Update lead
         $this->updateLead($product);
-
-        // Update session cart count
+        $cart->load('items');
         session(['cart_count' => $cart->count]);
+
+        $summary = $this->calculateCartSummary($cart);
 
         return response()->json([
             'success' => true,
             'message' => 'Product added to cart successfully.',
-            'cart_count' => $cart->count
+            'cart_count' => $cart->count,
         ]);
     }
 
+    /**
+     * Update item quantity
+     */
     public function update(Request $request)
     {
         $request->validate([
@@ -194,15 +220,15 @@ class CartController extends Controller
 
         $cartItem->quantity = $request->quantity;
         $cartItem->save();
-
-        $cart = $this->getCart();
-
         return response()->json([
             'success' => true,
-            'cart_count' => $cart->count
+            'message' => 'Item update successfully!',
         ]);
     }
 
+    /**
+     * Remove item from cart
+     */
     public function remove(Request $request)
     {
         $request->validate([
@@ -210,23 +236,32 @@ class CartController extends Controller
         ]);
 
         CartItem::find($request->item_id)->delete();
-        $cart = $this->getCart();
 
         return response()->json([
             'success' => true,
-            'cart_count' => $cart->count
+            'message' => 'Item remove successfully.',
         ]);
     }
 
+    /**
+     * Clear cart
+     */
     public function clear()
     {
         $cart = $this->getCart();
         $cart->items()->delete();
         session(['cart_count' => 0]);
+        session()->forget('applied_coupon');
 
-        return redirect()->route('cart.index')->with('success', 'Cart cleared successfully.');
+        return response()->json([
+            'success' => true,
+            'message' => 'Card clear successfully.',
+        ]);
     }
 
+    /**
+     * Apply coupon
+     */
     public function applyCoupon(Request $request)
     {
         $request->validate([
@@ -234,8 +269,8 @@ class CartController extends Controller
         ]);
 
         $couponCode = $request->coupon_code;
-
         $cart = $this->getCart();
+        $cart->load('items');
 
         if (!$cart || $cart->items->count() == 0) {
             return response()->json([
@@ -249,11 +284,17 @@ class CartController extends Controller
         $appliedProducts = [];
 
         foreach ($cart->items as $item) {
-            if ($item->product->coupon_code == $couponCode && $item->product->coupon_less_amount > 0) {
+            $product = $item->product;
+
+            if ($product && $product->coupon_code === $couponCode && $product->coupon_less_amount > 0) {
                 $found = true;
-                $discount = $item->product->coupon_less_amount * $item->quantity;
+                $discount = $product->coupon_less_amount * $item->quantity;
                 $totalCouponDiscount += $discount;
-                $appliedProducts[] = $item->product->name;
+
+                $appliedProducts[$item->product_id] = [
+                    'discount' => $discount,
+                    'couponCode' => $couponCode,
+                ];
             }
         }
 
@@ -266,9 +307,8 @@ class CartController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'Coupon applied successfully! You saved BDT ' . number_format($totalCouponDiscount, 2),
-                'total_discount' => $totalCouponDiscount,
-                'applied_products' => $appliedProducts
+                'message' => 'Coupon applied successfully! You saved ' . setting('currency', 'BDT') . ' ' . number_format($totalCouponDiscount, 2),
+
             ]);
         } else {
             return response()->json([
@@ -278,35 +318,88 @@ class CartController extends Controller
         }
     }
 
+    /**
+     * Remove coupon
+     */
     public function removeCoupon(Request $request)
     {
         session()->forget('applied_coupon');
 
-        return response()->json([
+         return response()->json([
             'success' => true,
-            'message' => 'Coupon removed successfully'
+            'message' => 'Coupon remove successfully!',
         ]);
     }
+
+    /**
+     * Update delivery charge
+     */
+    public function updateDelivery(Request $request)
+    {
+        $request->validate([
+            'delivery_type' => 'required|in:inside,outside'
+        ]);
+
+        $settings = Setting::pluck('value', 'key')->toArray();
+
+        $deliveryCharge = $request->delivery_type === 'inside'
+            ? ($settings['delivery_charge_inside_city'] ?? 0)
+            : ($settings['delivery_charge_outside_city'] ?? 0);
+
+        // Store delivery information in session
+        session([
+            'delivery_type'   => $request->delivery_type,
+            'delivery_charge' => $deliveryCharge,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'delivery_type' => $request->delivery_type,
+            'delivery_charge' => $deliveryCharge,
+        ]);
+    }
+
+    /**
+     * Get cart summary (AJAX)
+     */
+    public function getCartSummary()
+    {
+        $cart = $this->getCart();
+        $cart->load('items');
+        $summary = $this->calculateCartSummary($cart);
+
+        return response()->json([
+            'success' => true,
+            'data' => $summary
+        ]);
+    }
+
 
     /**
      * Place Order
      */
     public function placeOrder(Request $request)
     {
+
+      return($request);
+
         try {
             $request->validate([
                 'customer_name' => 'required|string|max:255',
-                'customer_email' => 'required|email|max:255',
+                'customer_email' => 'email|max:255',
                 'customer_phone' => 'required|string|max:20',
                 'shipping_address' => 'required|string',
-                'city' => 'required|string|max:100',
+                'city' => 'string|max:100',
                 'postal_code' => 'nullable|string|max:20',
                 'order_notes' => 'nullable|string',
-                'payment_method' => 'required|string',
-                'grand_total' => 'required|numeric',
+                'payment_type' => 'required|string|in:cash,online',
+                'payment_method' => 'nullable|string',
+                'transaction_id' => 'nullable|string',
+                'transaction_number' => 'nullable|string',
             ]);
 
             $cart = $this->getCart();
+            $cart->load('items');
 
             if (!$cart || $cart->items->count() == 0) {
                 return response()->json([
@@ -314,38 +407,12 @@ class CartController extends Controller
                     'message' => 'Your cart is empty.'
                 ]);
             }
+            $summary = $this->calculateCartSummary($cart);
 
             // Generate order number
             $orderNumber = 'ORD-' . date('Y') . '-' . str_pad(Order::count() + 1, 6, '0', STR_PAD_LEFT);
 
-            // Calculate totals
-            $subtotal = 0;
-            $totalDiscount = 0;
-            $totalCouponDiscount = 0;
-            $discountCode = null;
 
-            foreach ($cart->items as $item) {
-                $price = $item->product->discount_price ?? $item->product->selling_price;
-                $subtotal += $price * $item->quantity;
-
-                if ($item->product->discount_price && $item->product->discount_price < $item->product->selling_price) {
-                    $totalDiscount += ($item->product->selling_price - $item->product->discount_price) * $item->quantity;
-                }
-
-                if ($item->product->coupon_code && $item->product->coupon_less_amount > 0) {
-                    $totalCouponDiscount += $item->product->coupon_less_amount * $item->quantity;
-                    $discountCode = $item->product->coupon_code;
-                }
-            }
-
-            $totalAfterDiscount = $subtotal - $totalDiscount - $totalCouponDiscount;
-            $settings = Setting::pluck('value', 'key')->toArray();
-            $vatRate = $settings['vat_rate'] ?? 0;
-            $vatAmount = $totalAfterDiscount * ($vatRate / 100);
-            $deliveryCharge = $settings['delivery_charge_inside_city'] ?? 0;
-            $grandTotal = $totalAfterDiscount + $vatAmount + $deliveryCharge;
-
-            // Create order
             $order = Order::create([
                 'order_id' => $orderNumber,
                 'user_id' => auth()->id(),
@@ -353,18 +420,21 @@ class CartController extends Controller
                 'customer_email' => $request->customer_email,
                 'customer_phone' => $request->customer_phone,
                 'shipping_address' => $request->shipping_address,
-                'billing_address' => $request->shipping_address,
-                'subtotal' => $subtotal,
-                'discount' => $totalDiscount + $totalCouponDiscount,
-                'discount_code' => $discountCode,
-                'discount_amount' => $totalCouponDiscount,
-                'tax' => $vatAmount,
-                'shipping_cost' => $deliveryCharge,
-                'total' => $grandTotal,
+                'subtotal' => $summary['subtotal'],
+                'discount' =>  $summary['total_product_discount'] + $summary['total_coupon_discount'],
+                'coupon_code' => $summary['applied_coupon']['code'] ?? null,
+                'coupon_discount' => $summary['total_coupon_discount'],
+                'tax' => $summary['vat_amount'],
+                'shipping_cost' => $summary['delivery_charge'],
+                'total' => $summary['grand_total'],
                 'payment_method' => $request->payment_method,
+                'payment_type' => $request->payment_type,
                 'payment_status' => 'pending',
                 'order_status' => 'pending',
                 'notes' => $request->order_notes,
+                'transaction_id' => $request->transaction_id,
+                'transaction_number' => $request->transaction_number,
+
             ]);
 
             // Create order items
@@ -377,22 +447,21 @@ class CartController extends Controller
                     'discount' => $item->product->discount_price ? ($item->product->selling_price - $item->product->discount_price) : 0,
                 ]);
 
-                // Decrease stock
                 $item->product->decreaseStock($item->quantity);
             }
 
             // Clear cart
             $cart->items()->delete();
             session(['cart_count' => 0]);
+            session()->forget('applied_coupon');
 
-            // Send email to customer
+            // Send emails
             try {
                 Mail::to($order->customer_email)->send(new OrderConfirmationMail($order));
             } catch (\Exception $e) {
                 \Log::error('Customer email send failed: ' . $e->getMessage());
             }
 
-            // Send email to admin
             try {
                 $admins = User::where('role', 'admin')->get();
                 foreach ($admins as $admin) {
@@ -417,17 +486,6 @@ class CartController extends Controller
         }
     }
 
-    private function getCart()
-    {
-        if (auth()->check()) {
-            $cart = Cart::firstOrCreate(['user_id' => auth()->id()]);
-        } else {
-            $sessionId = Session::getId();
-            $cart = Cart::firstOrCreate(['session_id' => $sessionId]);
-        }
-        return $cart->load('items.product');
-    }
-
     private function updateLead($product)
     {
         if (session()->has('lead_id')) {
@@ -439,52 +497,5 @@ class CartController extends Controller
                 ]);
             }
         }
-    }
-
-    public function getCartSummary()
-    {
-        $cart = $this->getCart();
-
-        $settings = Setting::pluck('value', 'key')->toArray();
-        $vatRate = $settings['vat_rate'] ?? 0;
-        $deliveryCharge = $settings['delivery_charge_inside_city'] ?? 0;
-
-        $subtotal = 0;
-        $totalDiscount = 0;
-        $totalCouponDiscount = 0;
-
-        if ($cart && $cart->items) {
-            foreach ($cart->items as $item) {
-                $price = $item->product->discount_price ?? $item->product->selling_price;
-                $subtotal += $price * $item->quantity;
-
-                if ($item->product->discount_price && $item->product->discount_price < $item->product->selling_price) {
-                    $totalDiscount += ($item->product->selling_price - $item->product->discount_price) * $item->quantity;
-                }
-
-                if ($item->product->coupon_code && $item->product->coupon_less_amount > 0) {
-                    $totalCouponDiscount += $item->product->coupon_less_amount * $item->quantity;
-                }
-            }
-        }
-
-        $totalAfterDiscount = $subtotal - $totalDiscount - $totalCouponDiscount;
-        $vatAmount = $totalAfterDiscount * ($vatRate / 100);
-        $grandTotal = $totalAfterDiscount + $vatAmount + $deliveryCharge;
-
-        return response()->json([
-            'success' => true,
-            'data' => [
-                'subtotal' => $subtotal,
-                'product_discount' => $totalDiscount,
-                'coupon_discount' => $totalCouponDiscount,
-                'total_after_discount' => $totalAfterDiscount,
-                'vat_rate' => $vatRate,
-                'vat_amount' => $vatAmount,
-                'delivery_charge' => $deliveryCharge,
-                'grand_total' => $grandTotal,
-                'items_count' => $cart->items->count() ?? 0
-            ]
-        ]);
     }
 }

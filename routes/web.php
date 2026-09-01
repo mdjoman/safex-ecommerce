@@ -40,13 +40,13 @@ Route::prefix('cart')->group(function () {
     Route::get('/clear', [CartController::class, 'clear'])->name('cart.clear');
     Route::post('/apply-coupon', [CartController::class, 'applyCoupon'])->name('cart.apply-coupon');
     Route::post('/remove-coupon', [CartController::class, 'removeCoupon'])->name('cart.remove-coupon');
-    Route::get('/summary', [CartController::class, 'getCartSummary'])->name('cart.summary');
+    Route::post('/update-delivery', [CartController::class, 'updateDelivery'])->name('cart.update-delivery');
 });
 
 // ===== ORDER ROUTES =====
 Route::prefix('order')->group(function () {
     Route::post('/place', [CartController::class, 'placeOrder'])->name('order.place');
-    Route::get('/order/confirmation/{order}', [OrderController::class, 'confirmation'])->name('order.confirmation');
+    Route::get('/confirmation/{order}', [OrderController::class, 'confirmation'])->name('order.confirmation');
     Route::get('/track', [OrderController::class, 'trackForm'])->name('order.track.form');
     Route::post('/track', [OrderController::class, 'track'])->name('order.track');
 });

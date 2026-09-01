@@ -76,7 +76,7 @@ class ProductController extends Controller
         }
 
         // ===== PAGINATE =====
-        $products = $query->paginate(12);
+        $products = $query->paginate(20);
 
         // ===== GET ALL DATA FOR FILTERS =====
         $categories = Category::where('status', 'active')
